@@ -1,5 +1,6 @@
 package org.freeyourmetadata.ner.services;
 
+import org.freeyourmetadata.util.ExtractionException;
 import java.net.URI;
 import java.util.Set;
 import java.util.Map;
@@ -69,4 +70,11 @@ public interface NERService {
      * @return A documentation URI
      */
     public URI getDocumentationUri();
+
+    /**
+     * This function allows to set up the Exception Message that are throwed during the Named Entity Recognition
+     * @param e this is the exception catched during the Named Entity Recognition
+     * @return a modified exception
+     */
+    public String onError(ExtractionException e);
 }

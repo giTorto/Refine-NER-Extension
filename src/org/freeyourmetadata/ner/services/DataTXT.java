@@ -1,22 +1,24 @@
 package org.freeyourmetadata.ner.services;
 
-import static org.freeyourmetadata.util.UriUtil.createUri;
-
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Map;
-
 import org.apache.http.HttpEntity;
+import org.apache.http.util.EntityUtils;
+import org.freeyourmetadata.util.ExtractionException;
 import org.freeyourmetadata.util.ParameterList;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Map;
+import static org.freeyourmetadata.util.UriUtil.createUri;
 
 /**
  * dataTXT service connector
  * @author Stefano Parmesan
+ * @author Giuliano Tortoreto
  */
 public class DataTXT extends NERServiceBase {
     private final static URI SERVICEBASEURL = createUri("https://api.dandelion.eu/datatxt/nex/v1");
@@ -78,4 +80,27 @@ public class DataTXT extends NERServiceBase {
         
         return results;
     }
+
+    @Override
+    public String onError(ExtractionException e) {
+
+        if (e==null)
+            return null;
+
+        try {
+            String body = EntityUtils.toString(e.getResponse().getEntity());
+            JSONObject returnedResult = new JSONObject(body);
+            body = returnedResult.getString("message");
+            if(body!=null)
+                return body;
+
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        } catch (JSONException e1) {
+            e1.printStackTrace();
+        }
+
+        return e.getMessage();
+    }
+
 }

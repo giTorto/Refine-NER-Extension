@@ -1,18 +1,5 @@
 package org.freeyourmetadata.ner.services;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.Charset;
-import java.util.HashMap;
-import java.util.Set;
-import java.util.Map;
-
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -20,14 +7,25 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
+import org.freeyourmetadata.util.ExtractionException;
 import org.json.JSONException;
 import org.json.JSONTokener;
 import org.json.JSONWriter;
+
+import java.io.*;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Abstract base class for named-entity recognition services
  * with default support for JSON communication (but others are possible)
  * @author Ruben Verborgh
+ * @author Giuliano Tortoreto
  */
 public abstract class NERServiceBase implements NERService {
     /** The empty extraction result, containing no entities. */
@@ -132,9 +130,9 @@ public abstract class NERServiceBase implements NERService {
         final DefaultHttpClient httpClient = new DefaultHttpClient();
         final HttpResponse response = httpClient.execute(request);
         if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
-            throw new IllegalStateException(
-                    String.format("The extraction request returned status code %d instead of %s.",
-                                  response.getStatusLine().getStatusCode(), HttpStatus.SC_OK));
+            throw new ExtractionException(request, response,
+                    String.format("HTTP error %d",
+                                  response.getStatusLine().getStatusCode()));
         final HttpEntity responseEntity = response.getEntity();
         return parseExtractionResponseEntity(responseEntity);
     }
@@ -232,4 +230,21 @@ public abstract class NERServiceBase implements NERService {
             throw new RuntimeException(error);
         }
     }
+
+    /** {@inheritDoc} */
+    @Override
+    public String onError(ExtractionException e) {
+        if (e==null)
+            return null;
+
+        try {
+            String body = EntityUtils.toString(e.getResponse().getEntity());
+            if(body!=null)
+                return body;
+
+        } catch (IOException e1) { }
+
+        return e.getMessage();
+    }
+
 }
