@@ -82,10 +82,18 @@ public class NERChange implements Change {
                     json.array();
                     /* Service results array */
                     for (final ExtractionResult entities : row) {
+                        json.object();
+                        json.key("Error");
+                        if (entities.getErrorMessage() != null)
+                            json.value(entities.getErrorMessage());
+                        else
+                            json.value(null);
+                        json.key("Results");
                         json.array();
                         for (final NamedEntity entity : entities.getNamedEntities())
                             entity.writeTo(json);
                         json.endArray();
+                        json.endObject();
                     }
                     json.endArray();
                 }
@@ -105,7 +113,7 @@ public class NERChange implements Change {
             throw new IOException(error);
         }
     }
-    
+
     /**
      * Create a <tt>NERChange</tt> from a configuration reader
      * @param reader The reader
@@ -117,25 +125,27 @@ public class NERChange implements Change {
         /* Parse JSON line */
         final JSONTokener tokener = new JSONTokener(reader.readLine());
         final JSONObject changeJson = (JSONObject)tokener.nextValue();
-        
+
         /* Simple properties */
         final int columnIndex = changeJson.getInt("column");
         final String[] serviceNames = JSONUtilities.getStringArray(changeJson, "services");
-        
+
         /* Named entities nested array */
         final JSONArray namedEntitiesJson = changeJson.getJSONArray("entities");
         final ExtractionResult[][] namedEntities = new ExtractionResult[namedEntitiesJson.length()][];
         /* Rows array */
         for (int i = 0; i < namedEntities.length; i++) {
             /* Services array */
-            final JSONArray serviceResultsJson = namedEntitiesJson.getJSONArray(i);
+            final JSONArray serviceResultsJson = namedEntitiesJson.getJSONArray(i); //row
             namedEntities[i] = new ExtractionResult[serviceResultsJson.length()];
             final ExtractionResult[] serviceResults = namedEntities[i];
             for (int j = 0; j < serviceResults.length; j++) {
+                final JSONObject serviceRowResult = serviceResultsJson.getJSONObject(j);
+                final String errorMessage = serviceRowResult.getString("Error");
+
                 /* Service results array */
-                final JSONArray entitiesJson = serviceResultsJson.getJSONArray(j);
-                serviceResults[j].setNamedEntities(new NamedEntity[serviceResultsJson.length()]);
-                final NamedEntity[] entities = serviceResults[j].getNamedEntities();
+                final JSONArray entitiesJson = serviceRowResult.getJSONArray("Results");
+                final NamedEntity[] entities = new NamedEntity[entitiesJson.length()];
                 for (int k = 0; k < entities.length; k++) {
                     try {
                         entities[k] = new NamedEntity(entitiesJson.getJSONObject(k));
@@ -144,6 +154,11 @@ public class NERChange implements Change {
                         entities[k] = new NamedEntity("");
                     }
                 }
+                if (errorMessage==null || errorMessage.equals("") || errorMessage.equals("null"))
+                    serviceResults[j] = new ExtractionResult(entities, null);
+                else
+                    serviceResults[j] = new ExtractionResult(entities, errorMessage);
+
             }
         }
         
